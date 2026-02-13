@@ -32,7 +32,6 @@ export default function PostThreadPage() {
   const [loading, setLoading] = useState(true);
   const [displayName, setDisplayName] = useState<string>("");
 
-
   async function load() {
     setLoading(true);
 
@@ -40,7 +39,7 @@ export default function PostThreadPage() {
     const postData = p.data;
     setPost(postData);
 
-    // Load photo (first photo only for MVP)
+    // Load photo (first photo only)
     if (postData?.photoKeys?.length) {
       const { url } = await getUrl({ key: postData.photoKeys[0] });
       setPhotoUrl(url.toString());
@@ -50,17 +49,17 @@ export default function PostThreadPage() {
 
     // Load comments
     const c = await client.models.Comment.list({
-  filter: { postId: { eq: postId } },
-  limit: 300,
-});
+      filter: { postId: { eq: postId } },
+      limit: 300,
+    });
 
-setComments(
-  (c.data ?? []).sort(
-    (a, b) =>
-      new Date(a.createdAt ?? "").getTime() -
-      new Date(b.createdAt ?? "").getTime()
-  )
-);
+    setComments(
+      (c.data ?? []).sort(
+        (a, b) =>
+          new Date(a.createdAt ?? "").getTime() -
+          new Date(b.createdAt ?? "").getTime()
+      )
+    );
 
     setLoading(false);
   }
@@ -70,18 +69,16 @@ setComments(
   }, []);
 
   useEffect(() => {
-  (async () => {
-    const me = await client.models.UserProfile.list({ limit: 1 });
-    const name = me.data?.[0]?.displayName ?? "";
-
-    if (!name) {
-      window.location.href = "/profile";
-      return;
-    }
-
-    setDisplayName(name);
-  })();
-}, []);
+    (async () => {
+      const me = await client.models.UserProfile.list({ limit: 1 });
+      const name = me.data?.[0]?.displayName ?? "";
+      if (!name) {
+        window.location.href = "/profile";
+        return;
+      }
+      setDisplayName(name);
+    })();
+  }, []);
 
   useEffect(() => {
     if (postId) load();
@@ -112,13 +109,26 @@ setComments(
   if (!post) return <p style={{ padding: 16 }}>Post not found.</p>;
 
   return (
-    <main style={{ background: "#fafafa", minHeight: "100vh", paddingBottom: 60, fontFamily: "sans-serif" }}>
+    <main
+      style={{
+        backgroundImage: `
+          linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)),
+          url('/background.jpg')
+        `,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundAttachment: "fixed",
+        minHeight: "100vh",
+        paddingBottom: 60,
+      }}
+    >
       <header
         style={{
           position: "sticky",
           top: 0,
-          background: "white",
-          borderBottom: "1px solid #eee",
+          background: "rgba(255,255,255,0.85)",
+          backdropFilter: "blur(8px)",
+          borderBottom: "1px solid rgba(0,0,0,0.08)",
           zIndex: 10,
         }}
       >
@@ -130,39 +140,73 @@ setComments(
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            fontFamily: "sans-serif",
+            color: "#0a0a0a",
           }}
         >
-          <a href="/" style={{ textDecoration: "none", color: "#111", fontWeight: 800 }}>
+          <a
+            href="/"
+            style={{
+              textDecoration: "none",
+              color: "#0a0a0a",
+              fontWeight: 800,
+            }}
+          >
             ← Feed
           </a>
-          <div style={{ fontWeight: 800 }}>Thread</div>
-          <a href="/gallery" style={{ textDecoration: "none", color: "#111", fontWeight: 800 }}>
+          <div style={{ fontWeight: 900 }}>Thread</div>
+          <a
+            href="/gallery"
+            style={{
+              textDecoration: "none",
+              color: "#0a0a0a",
+              fontWeight: 800,
+            }}
+          >
             Gallery
           </a>
         </div>
       </header>
 
-      <div style={{ maxWidth: 980, margin: "0 auto", padding: "18px 16px" }}>
+      <div
+        style={{
+          maxWidth: 980,
+          margin: "0 auto",
+          padding: "18px 16px",
+          fontFamily: "sans-serif",
+        }}
+      >
         <div
           style={{
-            background: "white",
-            border: "1px solid #eee",
+            background: "rgba(255,255,255,0.96)",
+            border: "1px solid rgba(0,0,0,0.08)",
             borderRadius: 16,
             overflow: "hidden",
-            boxShadow: "0 2px 10px rgba(0,0,0,0.04)",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
+            color: "#0a0a0a",
           }}
         >
-          {/* Top: image (IG style) */}
+          {/* Top: image */}
           {photoUrl ? (
             <img
               src={photoUrl}
               alt=""
-              style={{ width: "100%", maxHeight: 620, objectFit: "cover", background: "#eee" }}
+              style={{
+                width: "100%",
+                maxHeight: 620,
+                objectFit: "cover",
+                background: "#eee",
+              }}
             />
           ) : null}
 
           {/* Caption + meta */}
-          <div style={{ padding: 14, borderBottom: "1px solid #f0f0f0" }}>
+          <div
+            style={{
+              padding: 14,
+              borderBottom: "1px solid rgba(0,0,0,0.08)",
+            }}
+          >
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div
                 style={{
@@ -172,22 +216,28 @@ setComments(
                   background: "#f2f2f2",
                   display: "grid",
                   placeItems: "center",
-                  fontWeight: 800,
-                  color: "#333",
+                  fontWeight: 900,
+                  color: "#0a0a0a",
                 }}
               >
                 🙂
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 900 }}>{post.authorName}</div>
-                <div style={{ fontSize: 12, opacity: 0.65 }}>{formatTime(post.createdAt)}</div>
+                <div style={{ fontWeight: 900, color: "#0a0a0a" }}>
+                  {post.authorName}
+                </div>
+                <div style={{ fontSize: 12, opacity: 0.75 }}>
+                  {formatTime(post.createdAt)}
+                </div>
               </div>
             </div>
 
             {(post.content ?? "").length > 0 && (
               <div style={{ marginTop: 10, whiteSpace: "pre-wrap" }}>
-                <span style={{ fontWeight: 900, marginRight: 6 }}>{post.authorName}</span>
-                {post.content}
+                <span style={{ fontWeight: 900, marginRight: 6 }}>
+                  {post.authorName}
+                </span>
+                <span style={{ color: "#0a0a0a" }}>{post.content}</span>
               </div>
             )}
           </div>
@@ -200,7 +250,10 @@ setComments(
 
             <div style={{ display: "grid", gap: 10 }}>
               {comments.map((c) => (
-                <div key={c.id} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <div
+                  key={c.id}
+                  style={{ display: "flex", gap: 10, alignItems: "flex-start" }}
+                >
                   <div
                     style={{
                       width: 30,
@@ -209,8 +262,8 @@ setComments(
                       background: "#f2f2f2",
                       display: "grid",
                       placeItems: "center",
-                      fontWeight: 800,
-                      color: "#333",
+                      fontWeight: 900,
+                      color: "#0a0a0a",
                       flexShrink: 0,
                     }}
                   >
@@ -218,20 +271,32 @@ setComments(
                   </div>
 
                   <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
-                      <div style={{ fontWeight: 900 }}>{c.authorName}</div>
-                      <div style={{ fontSize: 12, opacity: 0.6 }}>{formatTime(c.createdAt)}</div>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        alignItems: "baseline",
+                      }}
+                    >
+                      <div style={{ fontWeight: 900, color: "#0a0a0a" }}>
+                        {c.authorName}
+                      </div>
+                      <div style={{ fontSize: 12, opacity: 0.7 }}>
+                        {formatTime(c.createdAt)}
+                      </div>
+
                       {isAdmin && (
                         <button
                           onClick={() => deleteComment(c.id)}
                           style={{
                             marginLeft: "auto",
-                            border: "1px solid #eee",
-                            background: "white",
+                            border: "1px solid rgba(0,0,0,0.12)",
+                            background: "#fff",
                             borderRadius: 10,
                             padding: "6px 10px",
                             cursor: "pointer",
                             fontWeight: 800,
+                            color: "#0a0a0a",
                           }}
                         >
                           Delete
@@ -239,15 +304,25 @@ setComments(
                       )}
                     </div>
 
-                    <div style={{ marginTop: 4, whiteSpace: "pre-wrap" }}>{c.content}</div>
+                    <div style={{ marginTop: 4, whiteSpace: "pre-wrap", color: "#0a0a0a" }}>
+                      {c.content}
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Comment composer (sticky-ish bottom) */}
-          <div style={{ borderTop: "1px solid #eee", padding: 12, display: "flex", gap: 10 }}>
+          {/* Comment composer */}
+          <div
+            style={{
+              borderTop: "1px solid rgba(0,0,0,0.08)",
+              padding: 12,
+              display: "flex",
+              gap: 10,
+              background: "rgba(255,255,255,0.98)",
+            }}
+          >
             <input
               value={comment}
               onChange={(e) => setComment(e.target.value)}
@@ -256,8 +331,10 @@ setComments(
                 flex: 1,
                 padding: 12,
                 borderRadius: 12,
-                border: "1px solid #eee",
+                border: "1px solid rgba(0,0,0,0.15)",
                 outline: "none",
+                color: "#0a0a0a",
+                background: "#fff",
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") addComment();

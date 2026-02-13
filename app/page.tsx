@@ -26,17 +26,21 @@ export default function FeedPage() {
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [posting, setPosting] = useState(false);
-
   const [displayName, setDisplayName] = useState<string>("");
   const [isAnnouncement, setIsAnnouncement] = useState(false);
 
-  // 1) Invite gate
+  // invite gate
   useEffect(() => {
     const ok = localStorage.getItem("wedding_invite_ok");
     if (ok !== "true") window.location.href = "/invite";
   }, []);
 
-  // 2) Load profile name (force /profile if missing)
+  // admin check
+  useEffect(() => {
+    (async () => setIsAdmin(await isAdminUser()))();
+  }, []);
+
+  // profile gate
   useEffect(() => {
     (async () => {
       const me = await client.models.UserProfile.list({ limit: 1 });
@@ -49,12 +53,7 @@ export default function FeedPage() {
     })();
   }, []);
 
-  // 3) Admin check
-  useEffect(() => {
-    (async () => setIsAdmin(await isAdminUser()))();
-  }, []);
-
-  // 4) Local preview for image uploads
+  // preview image
   useEffect(() => {
     if (!file) {
       setPreviewUrl("");
@@ -66,15 +65,19 @@ export default function FeedPage() {
   }, [file]);
 
   async function loadPosts() {
-    const { data } = await client.models.Post.list({ limit: 200 });
+    const { data } = await client.models.Post.list();
 
     const postsWithUrls = await Promise.all(
-      (data ?? []).map(async (post: any) => {
+      (data ?? []).map(async (post) => {
         if (!post.photoKeys?.length) return post;
 
         const urls = await Promise.all(
           post.photoKeys.map(async (key: string) => {
-            const { url } = await getUrl({ key });
+            const { url } = await getUrl({
+              key,
+              options: { accessLevel: "protected" },
+            });
+
             return url.toString();
           })
         );
@@ -106,18 +109,34 @@ export default function FeedPage() {
 
     let photoKey: string | null = null;
     if (file) {
-      const key = `photos/${Date.now()}-${file.name}`;
-      await uploadData({ key, data: file });
-      photoKey = key;
+      const key = (rawKey: string) =>
+  rawKey.startsWith("protected/") ? rawKey.replace(/^protected\//, "") : rawKey;
+
+const urls = await Promise.all(
+  post.photoKeys.map(async (k: string) => {
+    const { url } = await getUrl({
+      key: key(k),
+      options: { accessLevel: "protected" },
+    });
+    return url.toString();
+  })
+);
+
+
+      await uploadData({
+        key,
+        data: file,
+        options: { accessLevel: "protected" },
+});
+
     }
 
     await client.models.Post.create({
-      content: content.trim() || "(photo)",
+      content: content.trim(),
       createdAt: new Date().toISOString(),
       authorName: displayName,
       photoKeys: photoKey ? [photoKey] : [],
-      isAnnouncement: isAdmin ? isAnnouncement : false,
-      isPinned: isAdmin ? isAnnouncement : false, // announcements auto-pin
+      isPinned: isAdmin ? isAnnouncement : false,
     });
 
     setContent("");
@@ -138,22 +157,34 @@ export default function FeedPage() {
     await client.models.Post.update({
       id: post.id,
       isPinned: !post.isPinned,
-      // optional: if you pin something manually, it’s not necessarily an announcement
-      // isAnnouncement: post.isAnnouncement,
     });
     await loadPosts();
   }
 
   return (
-    <main style={{ background: "#fafafa", minHeight: "100vh", paddingBottom: 60 }}>
+    <main
+      style={{
+        minHeight: "100vh",
+        paddingBottom: 60,
+        // full-app background image w/ dark overlay so text stays readable
+        backgroundImage: `
+          linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)),
+          url('/background.jpg')
+        `,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundAttachment: "fixed",
+      }}
+    >
       {/* Top bar */}
       <header
         style={{
           position: "sticky",
           top: 0,
-          background: "white",
-          borderBottom: "1px solid #eee",
           zIndex: 10,
+          background: "rgba(255,255,255,0.85)",
+          backdropFilter: "blur(10px)",
+          borderBottom: "1px solid rgba(0,0,0,0.08)",
         }}
       >
         <div
@@ -165,29 +196,55 @@ export default function FeedPage() {
             alignItems: "center",
             justifyContent: "space-between",
             fontFamily: "sans-serif",
+            color: "#0a0a0a",
           }}
         >
-          <div style={{ fontWeight: 800, letterSpacing: 0.2 }}>Aleks & Ricardo</div>
+          <div style={{ fontWeight: 900, letterSpacing: 0.2 }}>
+            Aleks & Ricardo
+          </div>
           <nav style={{ display: "flex", gap: 14 }}>
-            <a href="/" style={{ textDecoration: "none", color: "#111", fontWeight: 600 }}>
+            <a
+              href="/"
+              style={{
+                textDecoration: "none",
+                color: "#0a0a0a",
+                fontWeight: 800,
+              }}
+            >
               Feed
             </a>
-            <a href="/gallery" style={{ textDecoration: "none", color: "#111", fontWeight: 600 }}>
+            <a
+              href="/gallery"
+              style={{
+                textDecoration: "none",
+                color: "#0a0a0a",
+                fontWeight: 800,
+              }}
+            >
               Gallery
             </a>
           </nav>
         </div>
       </header>
 
-      <div style={{ maxWidth: 860, margin: "0 auto", padding: "18px 16px", fontFamily: "sans-serif" }}>
+      <div
+        style={{
+          maxWidth: 860,
+          margin: "0 auto",
+          padding: "18px 16px",
+          fontFamily: "sans-serif",
+        }}
+      >
         {/* Composer */}
         <section
           style={{
-            background: "white",
-            border: "1px solid #eee",
-            borderRadius: 16,
+            background: "rgba(255,255,255,0.92)",
+            backdropFilter: "blur(10px)",
+            border: "1px solid rgba(255,255,255,0.35)",
+            borderRadius: 18,
             padding: 14,
-            boxShadow: "0 2px 10px rgba(0,0,0,0.04)",
+            boxShadow: "0 12px 30px rgba(0,0,0,0.25)",
+            color: "#0a0a0a", // ✅ dark readable text
           }}
         >
           <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
@@ -200,15 +257,15 @@ export default function FeedPage() {
                 color: "white",
                 display: "grid",
                 placeItems: "center",
-                fontWeight: 800,
+                fontWeight: 900,
               }}
             >
               A&R
             </div>
 
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, opacity: 0.65, marginBottom: 8 }}>
-                Posting as <span style={{ fontWeight: 800 }}>{displayName || "…"}</span>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>
+                Posting as <span style={{ fontWeight: 900 }}>{displayName || "…"}</span>
               </div>
 
               <textarea
@@ -217,12 +274,14 @@ export default function FeedPage() {
                 placeholder="Share a moment…"
                 style={{
                   width: "100%",
-                  border: "1px solid #eee",
+                  border: "1px solid rgba(0,0,0,0.12)",
                   borderRadius: 12,
                   padding: 12,
                   minHeight: 90,
                   resize: "vertical",
                   outline: "none",
+                  color: "#0a0a0a",
+                  background: "rgba(255,255,255,0.95)",
                 }}
               />
 
@@ -236,14 +295,22 @@ export default function FeedPage() {
                     maxHeight: 420,
                     objectFit: "cover",
                     borderRadius: 14,
-                    border: "1px solid #eee",
+                    border: "1px solid rgba(0,0,0,0.12)",
                   }}
                 />
               )}
 
-              {/* admin announcement toggle */}
               {isAdmin && (
-                <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginTop: 10,
+                    fontWeight: 800,
+                    color: "#0a0a0a",
+                  }}
+                >
                   <input
                     type="checkbox"
                     checked={isAnnouncement}
@@ -253,8 +320,20 @@ export default function FeedPage() {
                 </label>
               )}
 
-              <div style={{ display: "flex", gap: 10, marginTop: 12, alignItems: "center" }}>
-                <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  marginTop: 12,
+                  alignItems: "center",
+                }}
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  style={{ color: "#0a0a0a" }}
+                />
 
                 <button
                   onClick={createPost}
@@ -264,9 +343,9 @@ export default function FeedPage() {
                     padding: "10px 14px",
                     borderRadius: 12,
                     border: "none",
-                    background: posting ? "#bbb" : "#111",
+                    background: posting ? "#777" : "#111",
                     color: "white",
-                    fontWeight: 700,
+                    fontWeight: 900,
                     cursor: posting ? "not-allowed" : "pointer",
                   }}
                 >
@@ -283,85 +362,88 @@ export default function FeedPage() {
             <article
               key={post.id}
               style={{
-                background: post.isAnnouncement ? "#fffbe6" : "white",
-                border: post.isAnnouncement ? "2px solid #111" : "1px solid #eee",
-                borderRadius: 16,
+                background: "rgba(255,255,255,0.92)",
+                backdropFilter: "blur(10px)",
+                border: "1px solid rgba(255,255,255,0.35)",
+                borderRadius: 18,
                 overflow: "hidden",
-                boxShadow: post.isAnnouncement ? "0 8px 30px rgba(0,0,0,0.08)" : "0 2px 10px rgba(0,0,0,0.04)",
+                boxShadow: "0 12px 30px rgba(0,0,0,0.25)",
+                color: "#0a0a0a", // ✅ makes EVERYTHING readable
               }}
             >
               {/* header */}
-              <div style={{ padding: 12 }}>
-                {post.isAnnouncement && (
-                  <div
-                    style={{
-                      background: "#111",
-                      color: "white",
-                      padding: "4px 10px",
-                      borderRadius: 999,
-                      fontSize: 12,
-                      fontWeight: 800,
-                      display: "inline-block",
-                      marginBottom: 8,
-                    }}
-                  >
-                    Announcement
-                  </div>
-                )}
-
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div
-                    style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 999,
-                      background: "#f2f2f2",
-                      display: "grid",
-                      placeItems: "center",
-                      fontWeight: 800,
-                      color: "#333",
-                    }}
-                  >
-                    🙂
-                  </div>
-
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 800 }}>{post.authorName}</div>
-                    <div style={{ fontSize: 12, opacity: 0.65 }}>{formatTime(post.createdAt)}</div>
-                  </div>
-
-                  {isAdmin && (
-                    <>
-                      <button
-                        onClick={() => togglePin(post)}
-                        style={{
-                          border: "1px solid #eee",
-                          background: "white",
-                          borderRadius: 10,
-                          padding: "6px 10px",
-                          cursor: "pointer",
-                          fontWeight: 700,
-                        }}
-                      >
-                        {post.isPinned ? "Unpin" : "Pin"}
-                      </button>
-
-                      <button
-                        onClick={() => deletePost(post.id)}
-                        style={{
-                          border: "1px solid #eee",
-                          background: "white",
-                          borderRadius: 10,
-                          padding: "6px 10px",
-                          cursor: "pointer",
-                          fontWeight: 700,
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </>
-                  )}
+              <div style={{ padding: 12, display: "flex", alignItems: "center", gap: 10 }}>
+                <div
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 999,
+                    background: "rgba(0,0,0,0.06)",
+                    display: "grid",
+                    placeItems: "center",
+                    fontWeight: 900,
+                    color: "#111",
+                  }}
+                >
+                  🙂
                 </div>
+
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 900, display: "flex", gap: 8, alignItems: "center" }}>
+                    {post.authorName}
+                    {post.isPinned ? (
+                      <span
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 900,
+                          padding: "3px 8px",
+                          borderRadius: 999,
+                          background: "rgba(0,0,0,0.08)",
+                        }}
+                      >
+                        PINNED
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div style={{ fontSize: 12, color: "#444", fontWeight: 700 }}>
+                    {formatTime(post.createdAt)}
+                  </div>
+                </div>
+
+                {isAdmin && (
+                  <>
+                    <button
+                      onClick={() => togglePin(post)}
+                      style={{
+                        border: "1px solid rgba(0,0,0,0.12)",
+                        background: "rgba(255,255,255,0.9)",
+                        borderRadius: 10,
+                        padding: "6px 10px",
+                        cursor: "pointer",
+                        fontWeight: 900,
+                        color: "#111",
+                      }}
+                    >
+                      {post.isPinned ? "Unpin" : "Pin"}
+                    </button>
+
+                    <button
+                      onClick={() => deletePost(post.id)}
+                      style={{
+                        border: "1px solid rgba(0,0,0,0.12)",
+                        background: "rgba(255,255,255,0.9)",
+                        borderRadius: 10,
+                        padding: "6px 10px",
+                        cursor: "pointer",
+                        fontWeight: 900,
+                        color: "#111",
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
               </div>
 
               {/* image */}
@@ -369,29 +451,34 @@ export default function FeedPage() {
                 <img
                   src={post.photoUrls[0]}
                   alt=""
-                  style={{ width: "100%", maxHeight: 520, objectFit: "cover", background: "#eee" }}
+                  style={{
+                    width: "100%",
+                    maxHeight: 520,
+                    objectFit: "cover",
+                    background: "#eee",
+                  }}
                 />
               ) : null}
 
               {/* content */}
               {(post.content ?? "").length > 0 && (
-                <div style={{ padding: 12, whiteSpace: "pre-wrap" }}>
-                  <span style={{ fontWeight: 800, marginRight: 6 }}>{post.authorName}</span>
-                  {post.content}
+                <div style={{ padding: 12, whiteSpace: "pre-wrap", fontSize: 16, lineHeight: 1.35 }}>
+                  <span style={{ fontWeight: 900, marginRight: 6 }}>{post.authorName}</span>
+                  <span style={{ color: "#111", fontWeight: 700 }}>{post.content}</span>
                 </div>
               )}
 
               {/* actions */}
               <div style={{ padding: "0 12px 12px", display: "flex", gap: 12, alignItems: "center" }}>
-                <a href={`/post/${post.id}`} style={{ textDecoration: "none", fontWeight: 800, color: "#111" }}>
+                <a
+                  href={`/post/${post.id}`}
+                  style={{ textDecoration: "none", fontWeight: 900, color: "#111" }}
+                >
                   View thread →
                 </a>
-
-                {post.isPinned && (
-                  <span style={{ fontSize: 12, opacity: 0.7, marginLeft: 6, fontWeight: 700 }}>📌 Pinned</span>
-                )}
-
-                <span style={{ marginLeft: "auto", fontSize: 12, opacity: 0.6 }}>Private wedding feed</span>
+                <span style={{ marginLeft: "auto", fontSize: 12, color: "#444", fontWeight: 700 }}>
+                  Private wedding feed
+                </span>
               </div>
             </article>
           ))}

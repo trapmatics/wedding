@@ -26,17 +26,20 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable}`}
-        style={{
-          backgroundImage: "url('/background.jpg')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundAttachment: "fixed",
-          minHeight: "100vh",
-        }}
-      >
-        <Providers>{children}</Providers>
-      </body>
+  className={`${geistSans.variable} ${geistMono.variable}`}
+  style={{
+    backgroundImage: `
+      linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)),
+      url('/background.jpg')
+    `,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundAttachment: "fixed",
+    minHeight: "100vh",
+  }}
+>
+  <Providers>{children}</Providers>
+</body>
     </html>
   );
 }
