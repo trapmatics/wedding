@@ -1,9 +1,9 @@
 import { defineStorage } from "@aws-amplify/backend";
 
 export const storage = defineStorage({
-  name: "weddingPhotos",
+  name: "weddingStorage",
   access: (allow) => ({
-    "photos/*": [
+    "protected/*": [
       allow.authenticated.to(["read", "write", "delete"]),
     ],
   }),
